@@ -1,0 +1,9 @@
+streamlit
+langchain
+langchain-openai
+yfinance
+pandas
+python-dotenv
+requests
+newsapi-python
+langchain-community
