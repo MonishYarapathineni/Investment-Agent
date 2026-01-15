@@ -8,16 +8,54 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def price_chart(symbol):
+import plotly.graph_objects as go
+import pandas as pd
+import yfinance as yf
+import streamlit as st
+
+def price_chart(symbol: str):
     hist = yf.Ticker(symbol).history(period="6mo")
+
     if hist.empty:
         st.info("No price data available.")
         return
-    fig, ax = plt.subplots()
-    hist["Close"].plot(ax=ax)
-    ax.set_title(f"{symbol} – 6M Close")
-    ax.set_xlabel("Date"); ax.set_ylabel("Price")
-    st.pyplot(fig)
+
+    # Add moving average
+    hist = hist.copy()
+    hist["MA20"] = hist["Close"].rolling(20).mean()
+
+    fig = go.Figure()
+
+    # Close line
+    fig.add_trace(go.Scatter(
+        x=hist.index, y=hist["Close"],
+        mode="lines",
+        name="Close",
+        line=dict(width=3),
+        hovertemplate="Date: %{x|%Y-%m-%d}<br>Close: $%{y:.2f}<extra></extra>"
+    ))
+
+    # 20-day MA
+    fig.add_trace(go.Scatter(
+        x=hist.index, y=hist["MA20"],
+        mode="lines",
+        name="20D MA",
+        line=dict(width=2, dash="dash"),
+        hovertemplate="Date: %{x|%Y-%m-%d}<br>MA20: $%{y:.2f}<extra></extra>"
+    ))
+
+    fig.update_layout(
+        title=f"{symbol} — 6M Price Trend",
+        height=420,
+        margin=dict(l=20, r=20, t=55, b=20),
+        template="plotly_dark",
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.06)"),
+        yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.06)", tickprefix="$"),
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
 
 # Page config
