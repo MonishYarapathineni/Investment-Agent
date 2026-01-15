@@ -13,20 +13,32 @@ import pandas as pd
 import yfinance as yf
 import streamlit as st
 
-def price_chart(symbol: str):
-    hist = yf.Ticker(symbol).history(period="6mo")
+@st.cache_data(ttl=900)  # cache for 15 minutes
+def cached_history(symbol: str, period: str = "6mo"):
+    return yf.Ticker(symbol).history(period=period)
 
-    if hist.empty:
-        st.info("No price data available.")
+def get_history_with_retry(symbol: str, period: str = "6mo", retries: int = 2):
+    last_err = None
+    for i in range(retries + 1):
+        try:
+            return cached_history(symbol, period)
+        except Exception as e:
+            last_err = e
+            time.sleep(1.5 * (i + 1))  # backoff: 1.5s, 3s, ...
+    return None
+
+def price_chart(symbol: str):
+    hist = get_history_with_retry(symbol, "6mo", retries=2)
+
+    if hist is None or hist.empty:
+        st.warning("Price data temporarily unavailable (Yahoo timed out). Please try again in a moment.")
         return
 
-    # Add moving average
     hist = hist.copy()
     hist["MA20"] = hist["Close"].rolling(20).mean()
 
     fig = go.Figure()
 
-    # Close line
     fig.add_trace(go.Scatter(
         x=hist.index, y=hist["Close"],
         mode="lines",
@@ -35,7 +47,6 @@ def price_chart(symbol: str):
         hovertemplate="Date: %{x|%Y-%m-%d}<br>Close: $%{y:.2f}<extra></extra>"
     ))
 
-    # 20-day MA
     fig.add_trace(go.Scatter(
         x=hist.index, y=hist["MA20"],
         mode="lines",
@@ -56,6 +67,7 @@ def price_chart(symbol: str):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
 
 
 # Page config

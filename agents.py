@@ -7,6 +7,17 @@ from langchain_openai import ChatOpenAI
 from config import NEWS_API_KEY
 # agents.py (add near imports)
 from memory import load_notes, save_notes
+from memory import load_notes, save_notes
+import streamlit as st
+
+@st.cache_data(ttl=900)
+def cached_stock_history(symbol: str, period: str):
+    return yf.Ticker(symbol).history(period=period)
+
+@st.cache_data(ttl=900)
+def cached_stock_info(symbol: str):
+    return yf.Ticker(symbol).info
+
 
 class DataAgent:
     """Data Agent : Collects data"""
@@ -17,9 +28,8 @@ class DataAgent:
     def collect_stock_data(self, symbol):
         """Get stock data from Yahoo Finance"""
         try:
-            stock = yf.Ticker(symbol)
-            info = stock.info
-            hist = stock.history(period="5d")
+            info = cached_stock_info(symbol)
+            hist = cached_stock_history(symbol, "5d")
             
             price = round(hist['Close'].iloc[-1], 2) if not hist.empty else 0
             change = round(((hist['Close'].iloc[-1] / hist['Close'].iloc[0]) - 1) * 100, 2) if len(hist) > 1 else 0
